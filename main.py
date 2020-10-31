@@ -10,6 +10,8 @@
 import numpy as np
 import pandas as pd
 import sys
+import warnings
+warnings.filterwarnings('ignore')
 
 from neuralNetwork import NeuralNetwork
 
@@ -162,7 +164,7 @@ if __name__ == '__main__':
 			print_average_gradients = ['%.5f' % n for n in avg_g[i][j]]
 			print('\t\t\t'  + '%.5f ' % avg_b[i][j] + ' '.join(print_average_gradients))
 		
-	print('|--------------------------------------------------------------------------------|')
+	print('--------------------------------------------')
 
 	print('Rodando verificacao numerica de gradientes (epsilon=0.0000010000)')
 	epsilon = 0.0000010000
@@ -170,7 +172,7 @@ if __name__ == '__main__':
 	avg_bias_numeric = []
 	avg_gradients_numeric = []
 	for i in range(len(thetas)):
-		print('\t\tGradientes finais para Theta' + str(i+1))
+		print(f'\tGradiente numerico de Theta{str(i+1)}:')
 
 		linhas = [""]*len(thetas[i])
 		linha = 0
@@ -203,11 +205,11 @@ if __name__ == '__main__':
 		
 		avg_gradients_numeric.append(np.array(gradients_list))
 		for i in linhas:
-			print(f'\t\t\t{i}')
+			print(f'\t\t{i}')
 
 v1 = abs( (avg_b-avg_bias_numeric).sum())
 v2 = abs( (avg_g-avg_gradients_numeric).sum())
 print("--------------------------------------------")
 print("Verificando corretude dos gradientes com base nos gradientes numericos:")
-print(f"\t\tErro entre gradiente via backprop e gradiente numerico para Theta1: {'%.10f' % (v1[0].sum() + v2[0].sum())}")
-print(f"\t\tErro entre gradiente via backprop e gradiente numerico para Theta2: {'%.10f' % (v1[1].sum() + v2[1].sum())}")
+print(f"\tErro entre gradiente via backprop e gradiente numerico para Theta1: {'%.10f' % (v1[0].sum() + v2[0].sum())}")
+print(f"\tErro entre gradiente via backprop e gradiente numerico para Theta2: {'%.10f' % (v1[1].sum() + v2[1].sum())}")
