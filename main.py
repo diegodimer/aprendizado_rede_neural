@@ -13,6 +13,16 @@ import sys
 
 from neuralNetwork import NeuralNetwork
 
+def _normalize_df(df):
+	for column in df:
+		max_col = df[column].max()
+		min_col = df[column].min()
+		if max_col == min_col: #divisão por 0 faz dar NaN
+			df[column] = 1.0
+		else:
+			df[column] = (df[column] - min_col) / (max_col - min_col)
+		print(column)
+
 def read_initial_weights(initial_weights):
 	with open(initial_weights,'r') as f:
 		content = f.readlines()
@@ -69,7 +79,6 @@ if __name__ == '__main__':
 
 	#get data and output columns
 	df, output_columns = read_dataset(dataset)
-
 	'''
 		no fim desse pré-processamento:
 
@@ -114,14 +123,7 @@ if __name__ == '__main__':
 	}
 
 	nn = NeuralNetwork(options)
-	'''
-	print(bias)
-	print(thetas)
-	print(df)
-	for entry in df:
-		print(entry)
-		print(type(entry))
-	'''
+
 	print('Calculando erro/custo J da rede')
 
 	for i,row in df.iterrows():
@@ -135,10 +137,10 @@ if __name__ == '__main__':
 		print('\tSaida predita para o exemplo '+ str(i+1) + ': [' + ' '.join(prediction)+']')
 		expected = ['%.5f' % n for n in row[output_columns]]
 		print('\tSaida esperada para o exemplo '+ str(i+1) + ': [' + ' '.join(expected)+']')
-		result = nn.calculate_cost_function(df.iloc[[i]])
+		result = nn.calculate_cost_function(df.iloc[[i]], thetas, bias)
 		print('\tJ do exemplo '+ str(i+1) + ': ' + '%.3f' % result+'\n')
 
-	print('J total do dataset (com regularizacao): ' + '%.5f' % nn.calculate_cost_function(df) + '\n')
+	print('J total do dataset (com regularizacao): ' + '%.5f' % nn.calculate_cost_function(df, thetas, bias) + '\n')
 
 	print('|--------------------------------------------------------------------------------|')
 	print('Rodando backpropagation')
@@ -153,8 +155,7 @@ if __name__ == '__main__':
 	print('\tDataset completo processado. Calculando gradientes regularizados')
 	avg_b = np.mean(b, axis=0)
 	avg_g = np.mean(g, axis=0)
-	#print(avg_b)
-	#print(avg_g)
+
 	for i in range(len(avg_b)):
 		print('\t\tGradientes finais para Theta' + str(i+1) + '(com regularizacao):')
 		for j in range(len(avg_b[i])):
@@ -164,12 +165,41 @@ if __name__ == '__main__':
 	print('|--------------------------------------------------------------------------------|')
 
 	print('Rodando verificacao numerica de gradientes (epsilon=0.0000010000)')
-	for i in range(len(avg_b)):
-		print('\t\tGradientes finais para Theta' + str(i+1) + '(com regularizacao):')
-		for j in range(len(avg_b[i])):
-			print_average_gradients = ['%.5f' % n for n in avg_g[i][j]]
-			print('\t\t\t'  + '%.5f ' % avg_b[i][j] + ' '.join(print_average_gradients))
+	epsilon = 0.0000010000
+	
+	for i in range(len(thetas)):
+		print('\t\tGradientes finais para Theta' + str(i+1))
 
+		linhas = [""]*len(thetas[i])
+		linha = 0
+		for k in bias[i]:
+			k+=epsilon
+			t1 = nn.calculate_cost_function(df, thetas, bias)
+			k-= 2*epsilon
+			t1 -= nn.calculate_cost_function(df, thetas, bias)
+			k+=epsilon
+			linhas[linha] += str('%.5f' % (t1/(2*epsilon)))
+			linha+=1
+		
+		linha = 0
+		transposta = False
+		if thetas[i].shape[1] != 1:
+			thetas[i] = thetas[i].T
+			transposta = True
 
-
+		for k in thetas[i]:
+			k+=epsilon
+			if transposta:
+				thetas[i] = thetas[i].T
+			t1 = nn.calculate_cost_function(df, thetas, bias)
+			k-=2*epsilon
+			t1 -= nn.calculate_cost_function(df, thetas, bias)
+			k+=epsilon
+			linhas[linha] += str('  %.5f' % (t1/(2*epsilon)))
+			if transposta:
+				thetas[i] = thetas[i].T
+			else:
+				linha+=1
+		for i in linhas:
+			print(f'\t\t\t{i}')
 

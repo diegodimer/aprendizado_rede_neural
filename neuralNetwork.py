@@ -85,7 +85,7 @@ class NeuralNetwork():
                     print('\n\t\tf(x): [' + ' '.join(after_sigmoid)+ ']')
 
 
-    def calculate_cost_function(self, test_set):
+    def calculate_cost_function(self, test_set, theta_list, bias):
         """
         Calcula função de custo J para o conjunto de treinamento {test_set}
         J(theta) = 1/n * [ ( (-y_k) * (log( f(x_k) ) - (1 - y_k) * (log(1 - f(x_k)) ) ) ) ]para todos os neuronios de saída, e para todos exemplos + (lambda / 2*n)* (soma de todos os pesos)
@@ -105,22 +105,24 @@ class NeuralNetwork():
             # y_k e f_k são listas (com as saídas esperadas pra cada neuronio na camada de saída)
             cummulative_sum = 0
             for i in range(len(f_k)):
-                cummulative_sum += (-y_k[i] * np.log(f_k[i])) - ((1-y_k[i]) * np.log(1-f_k[i]))
+                cummulative_sum += (-y_k[i] * np.log(f_k[i])) - ( (1-y_k[i]) * np.log( (1-f_k[i]) ))
 
             cost_function += cummulative_sum[0]
             
         cost_function = cost_function/n
       
         theta_sum = 0
-        for i in self.theta_list:
-            theta_sum += i.sum() # cada elemento da lista de thetas é uma np.matrix
+        for i in theta_list[0]:
+            for j in i:
+                theta_sum += j**2
 
-        cost_function += (self.reg_factor / 2*n) * theta_sum
+
+        cost_function += (self.reg_factor / (2*n)) * theta_sum
         
         return cost_function
 
 
-    def backpropagation(self, test_set, debug = False):
+    def backpropagation(self, test_set, debug=False):
         '''
             Atualiza os pesos da rede neural com base nas instâncias de treino
 
