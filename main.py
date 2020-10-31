@@ -166,12 +166,15 @@ if __name__ == '__main__':
 
 	print('Rodando verificacao numerica de gradientes (epsilon=0.0000010000)')
 	epsilon = 0.0000010000
-	
+
+	avg_bias_numeric = []
+	avg_gradients_numeric = []
 	for i in range(len(thetas)):
 		print('\t\tGradientes finais para Theta' + str(i+1))
 
 		linhas = [""]*len(thetas[i])
 		linha = 0
+		bias_list = []
 		for k in bias[i]:
 			k+=epsilon
 			t1 = nn.calculate_cost_function(df, thetas, bias)
@@ -180,9 +183,14 @@ if __name__ == '__main__':
 			k+=epsilon
 			linhas[linha] += str('%.5f' % (t1/(2*epsilon)))
 			linha+=1
-		
+			bias_list.append([(t1/(2*epsilon))])
+
+		avg_bias_numeric.append(np.array(bias_list))
+
 		linha = 0
+		gradients_list = []
 		for k in range(len(thetas[i])):
+			gradients_list.append([])
 			for j in range(len(thetas[i][k])):
 				thetas[i][k][j]+=epsilon
 				t1 = nn.calculate_cost_function(df, thetas, bias)
@@ -190,7 +198,16 @@ if __name__ == '__main__':
 				t1 -= nn.calculate_cost_function(df, thetas, bias)
 				thetas[i][k][j]+=epsilon
 				linhas[linha] += str('  %.5f' % (t1/(2*epsilon)))
+				gradients_list[linha].append(t1/(2*epsilon))
 			linha+=1
+		
+		avg_gradients_numeric.append(np.array(gradients_list))
 		for i in linhas:
 			print(f'\t\t\t{i}')
 
+v1 = abs( (avg_b-avg_bias_numeric).sum())
+v2 = abs( (avg_g-avg_gradients_numeric).sum())
+print("--------------------------------------------")
+print("Verificando corretude dos gradientes com base nos gradientes numericos:")
+print(f"\t\tErro entre gradiente via backprop e gradiente numerico para Theta1: {'%.10f' % (v1[0].sum() + v2[0].sum())}")
+print(f"\t\tErro entre gradiente via backprop e gradiente numerico para Theta2: {'%.10f' % (v1[1].sum() + v2[1].sum())}")
