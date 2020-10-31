@@ -71,7 +71,7 @@ class NeuralNetwork():
             self.activation[layer] = np.matmul(self.theta_list[layer-1],self.activation[layer-1])
         
             if debug:
-                b4_sigmoid = ['%.5f' % n for n in (self.bias[layer-1] + self.activation[layer])]
+                b4_sigmoid = [  '%.5f' % n for n in (self.bias[layer-1] + self.activation[layer])]
                 print('\n\t\tz' + str(layer+1) + ': [' + ' '.join(b4_sigmoid)+ ']')
 
             self.activation[layer] = 1 / (1 + np.exp(-(self.bias[layer-1] + self.activation[layer])))

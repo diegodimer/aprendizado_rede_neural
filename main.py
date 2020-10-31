@@ -13,56 +13,62 @@ import sys
 
 from neuralNetwork import NeuralNetwork
 
+def read_initial_weights(initial_weights):
+	with open(initial_weights,'r') as f:
+		content = f.readlines()
+		bias = []
+		thetas = []
+		for i in content:
+			neurons = i.split(';')
+			b = []
+			t = []
+			for j in neurons:
+				weights = j.split(',')
+				b.append(float(weights[0])) # first value is always bias
+				t.append([float(k) for k in weights[1:]])
+			b = np.array(b).reshape(len(b),1) # matriz unidimensional
+			bias.append(b)
+			t= np.array(t)
+			thetas.append(t)
+	return bias, thetas
+
+def read_dataset(dataset):
+	with open(dataset,'r') as f:
+		content = f.readlines()
+		data = []
+		features_and_outputs = content[0].split(';')
+		number_of_features = len(features_and_outputs[0].split(','))
+		number_of_outputs = len(features_and_outputs[1].split(','))
+		for i in content:
+			data.append([float(k) for k in i.replace(';',',').split(',')])
+
+		output_columns = [str(x) for x in range(number_of_features,number_of_features+number_of_outputs)]
+		df = pd.DataFrame.from_records(data)
+		df.columns = [str(x) for x in range(len(data[0]))] # column name is string values, for consistency
+	return df, output_columns
+
+def read_network_file(network):
+	with open(network, 'r') as f:
+		content = f.readlines()
+		regularization = float(content.pop(0))
+		neurons_per_layer = []
+		for i in content:
+			neurons_per_layer.append(int(i))
+	return regularization, neurons_per_layer
+
 if __name__ == '__main__':
-	network = sys.argv[1]
-	initial_weights = sys.argv[2]
-	dataset = sys.argv[3]
+	network = 'network.txt' #sys.argv[1]
+	initial_weights = 'initial_weights.txt' #sys.argv[2]
+	dataset = 'dataset.txt' #sys.argv[3]
 
 	# get regularization factor and number of neurons
-	f = open(network,'r')
-	content = f.readlines()
-	regularization = float(content[0])
-	neurons_per_layer = []
-	for i in range(1,len(content)):
-		neurons_per_layer.append(int(content[i]))
-
-	f.close()
+	regularization, neurons_per_layer = read_network_file(network)
 
 	# get initial weight values
-	f = open(initial_weights,'r')
-	content = f.readlines()
-	bias = []
-	thetas = []
-	for i in range(len(content)):
-		neurons = content[i].split(';')
-		b = []
-		t = []
-		for j in range(len(neurons)):
-			weights = neurons[j].split(',')
-			b.append(float(weights[0])) # first value is always bias
-			t.append([float(k) for k in weights[1:]])
-		b = np.array(b).reshape(len(b),1) # matriz unidimensional
-		bias.append(b)
-		t= np.array(t)
-		thetas.append(t)
-	
-	f.close()
+	bias, thetas = read_initial_weights(initial_weights)
 
 	#get data and output columns
-	f = open(dataset,'r')
-	content = f.readlines()
-	data = []
-	features_and_outputs = content[0].split(';')
-	number_of_features = len(features_and_outputs[0].split(','))
-	number_of_outputs = len(features_and_outputs[1].split(','))
-	for i in range(len(content)):
-		data.append([float(k) for k in content[i].replace(';',',').split(',')])
-
-	output_columns = [str(x) for x in range(number_of_features,number_of_features+number_of_outputs)]
-	df = pd.DataFrame.from_records(data)
-	df.columns = [str(x) for x in range(len(data[0]))] # column name is string values, for consistency
-	
-	f.close()
+	df, output_columns = read_dataset(dataset)
 
 	'''
 		no fim desse pré-processamento:
@@ -156,6 +162,13 @@ if __name__ == '__main__':
 			print('\t\t\t'  + '%.5f ' % avg_b[i][j] + ' '.join(print_average_gradients))
 		
 	print('|--------------------------------------------------------------------------------|')
+
+	print('Rodando verificacao numerica de gradientes (epsilon=0.0000010000)')
+	for i in range(len(avg_b)):
+		print('\t\tGradientes finais para Theta' + str(i+1) + '(com regularizacao):')
+		for j in range(len(avg_b[i])):
+			print_average_gradients = ['%.5f' % n for n in avg_g[i][j]]
+			print('\t\t\t'  + '%.5f ' % avg_b[i][j] + ' '.join(print_average_gradients))
 
 
 
