@@ -182,24 +182,15 @@ if __name__ == '__main__':
 			linha+=1
 		
 		linha = 0
-		transposta = False
-		if thetas[i].shape[1] != 1:
-			thetas[i] = thetas[i].T
-			transposta = True
-
-		for k in thetas[i]:
-			k+=epsilon
-			if transposta:
-				thetas[i] = thetas[i].T
-			t1 = nn.calculate_cost_function(df, thetas, bias)
-			k-=2*epsilon
-			t1 -= nn.calculate_cost_function(df, thetas, bias)
-			k+=epsilon
-			linhas[linha] += str('  %.5f' % (t1/(2*epsilon)))
-			if transposta:
-				thetas[i] = thetas[i].T
-			else:
-				linha+=1
+		for k in range(len(thetas[i])):
+			for j in range(len(thetas[i][k])):
+				thetas[i][k][j]+=epsilon
+				t1 = nn.calculate_cost_function(df, thetas, bias)
+				thetas[i][k][j]-=2*epsilon
+				t1 -= nn.calculate_cost_function(df, thetas, bias)
+				thetas[i][k][j]+=epsilon
+				linhas[linha] += str('  %.5f' % (t1/(2*epsilon)))
+			linha+=1
 		for i in linhas:
 			print(f'\t\t\t{i}')
 
