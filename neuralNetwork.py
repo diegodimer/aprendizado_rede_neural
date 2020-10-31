@@ -67,17 +67,15 @@ class NeuralNetwork():
                                                                     a3
         """
         if layer > 0:
-            #print('computing: '+str(self.theta_list[layer-1]) + ' times '+ str(self.activation[layer-1]))
+           
             self.activation[layer] = np.matmul(self.theta_list[layer-1],self.activation[layer-1])
-            #print('result')
-            #print(self.activation[layer])
+        
             if debug:
                 b4_sigmoid = ['%.5f' % n for n in (self.bias[layer-1] + self.activation[layer])]
                 print('\n\t\tz' + str(layer+1) + ': [' + ' '.join(b4_sigmoid)+ ']')
 
             self.activation[layer] = 1 / (1 + np.exp(-(self.bias[layer-1] + self.activation[layer])))
-            #print('result2')
-            #print(self.activation[layer])
+           
             if debug:
                 after_sigmoid = ['%.5f' % n for n in self.activation[layer]]
                 if layer != len(self.layers) - 1:
@@ -156,14 +154,14 @@ class NeuralNetwork():
             # resto das camadas
             for i in reversed(range(1,L - 1)): # primeira camada não tem ativação
                 deltas[i] = []
-                #print('theta_list[i]: '+str(self.theta_list[i]))
+                
                 first = deltas[i+1].T.dot(self.theta_list[i])
           
                 second = np.subtract(self.activation[i], np.square(self.activation[i]))
 
                 deltas[i] =  np.multiply(first.T,second) # element-wise multiplication
                 if debug:
-                    #print('deltas[i]: ' +str(deltas[i]))
+                   
                     print_camada = ['%.5f' % n for n in deltas[i]]
                     print('\t\tdelta'+str(i+1) + ': [' + ' '.join(print_camada) + ']')
 
@@ -186,15 +184,11 @@ class NeuralNetwork():
             if not debug:
                 # 3. atualizar cada peso com o valor do gradiente:
                 for i in range(len(self.theta_list)):
-                    #print('trying to' + str(self.theta_list[i]) + ' + 0.00001 * '+ str(gradients[i]))
-                    #print('type of gradients:')
-                    #print(type(gradients[i]))
+                  
                     self.theta_list[i] = self.theta_list[i] - self.learning_rate*gradients[i]
 
                 for i in range(len(self.bias)):
-                    #print('trying to' + str(self.bias[i]) + ' + 0.00001 * '+ str(bias_gradients[i]))
-                    #print('type of bias gradients:')
-                    #print(type(bias_gradients[i]))
+                    
                     self.bias[i] = self.bias[i] - self.learning_rate*bias_gradients[i]
 
         return (bias_gradients, gradients) # só usado no debug
