@@ -1,14 +1,6 @@
 import numpy as np
 import re
 
-'''
-    ****substitui np.matrix por np.array (aparentemente funciona exatamente igual)*****
-
-    nota na documentação de numpy.matrix:
-
-    It is no longer recommended to use this class, even for linear algebra. 
-    Instead use regular arrays. The class may be removed in the future.
-'''
 class NeuralNetwork():
     
     activation = None # lista de valores de ativação. activation[x] é uma matriz com os valores de ativação dos neuronios na camada x
@@ -183,10 +175,6 @@ class NeuralNetwork():
                     print('\n\t\tGradientes de Theta'+str(i+1)+':')
                     gr = str(gradients[i])
                     print(re.sub(r"[\[\]]", r"",gr))
-                    # for j in range(len(gradients[i])):
-                    #     print_gradients = ['%.5f' % n for n in gradients[i][j]]
-                    #     print('\t\t\t' + '%.5f ' % bias_gradients[i][j] +' '.join(print_gradients))
-                    # print(' ')
             
 
             if not debug:
