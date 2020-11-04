@@ -10,10 +10,15 @@
 import numpy as np
 import pandas as pd
 import sys
+import re
+
 import warnings
 warnings.filterwarnings('ignore')
 
 from neuralNetwork import NeuralNetwork
+
+np.set_printoptions(precision=5, formatter={'all':lambda x: f'\t{x:.05f}'})
+np.printoptions(precision=5)
 
 def _normalize_df(df):
 	for column in df:
@@ -28,21 +33,10 @@ def _normalize_df(df):
 def read_initial_weights(initial_weights):
 	with open(initial_weights,'r') as f:
 		content = f.readlines()
-		bias = []
 		thetas = []
 		for i in content:
-			neurons = i.split(';')
-			b = []
-			t = []
-			for j in neurons:
-				weights = j.split(',')
-				b.append(float(weights[0])) # first value is always bias
-				t.append([float(k) for k in weights[1:]])
-			b = np.array(b).reshape(len(b),1) # matriz unidimensional
-			bias.append(b)
-			t= np.array(t)
-			thetas.append(t)
-	return bias, thetas
+			thetas.append(np.matrix(i))
+	return thetas
 
 def read_dataset(dataset):
 	with open(dataset,'r') as f:
@@ -69,15 +63,15 @@ def read_network_file(network):
 	return regularization, neurons_per_layer
 
 if __name__ == '__main__':
-	network = 'network.txt' #sys.argv[1]
-	initial_weights = 'initial_weights.txt' #sys.argv[2]
-	dataset = 'dataset.txt' #sys.argv[3]
+	network = sys.argv[1]
+	initial_weights = sys.argv[2]
+	dataset = sys.argv[3]
 
 	# get regularization factor and number of neurons
 	regularization, neurons_per_layer = read_network_file(network)
 
 	# get initial weight values
-	bias, thetas = read_initial_weights(initial_weights)
+	thetas = read_initial_weights(initial_weights)
 
 	#get data and output columns
 	df, output_columns = read_dataset(dataset)
@@ -97,9 +91,7 @@ if __name__ == '__main__':
 
 	for i in range(len(neurons_per_layer)-1):
 		print("\nTheta"+str(i+1) + " inicial (pesos de cada neuronio, incluindo bias, armazenados nas linhas):")
-		for j in range(neurons_per_layer[i+1]): # camada de features não tem pesos
-			remaining_weights = ['%.5f' % n for n in  thetas[i][j]]
-			print('\t ' + "%.5f" % bias[i][j] + ' ' + ' '.join(remaining_weights))
+		print( re.sub(r"[\[\] ]", r"\t", str(thetas[i])) )
 	print('\nConjunto de treinamento')
 	for index,row in df.iterrows():
 		print('\tExemplo '+str(index+1))
@@ -117,7 +109,6 @@ if __name__ == '__main__':
 	options = {
 		'regularization': regularization,
 		'neurons_per_layer': neurons_per_layer,
-		'bias': bias,
 		'thetas': thetas,
 		'df': df,
 		'output_columns': output_columns,
@@ -139,10 +130,10 @@ if __name__ == '__main__':
 		print('\tSaida predita para o exemplo '+ str(i+1) + ': [' + ' '.join(prediction)+']')
 		expected = ['%.5f' % n for n in row[output_columns]]
 		print('\tSaida esperada para o exemplo '+ str(i+1) + ': [' + ' '.join(expected)+']')
-		result = nn.calculate_cost_function(df.iloc[[i]], thetas, bias)
+		result = nn.calculate_cost_function(df.iloc[[i]], thetas, regularizar=False)
 		print('\tJ do exemplo '+ str(i+1) + ': ' + '%.3f' % result+'\n')
 
-	print('J total do dataset (com regularizacao): ' + '%.5f' % nn.calculate_cost_function(df, thetas, bias) + '\n')
+	print('J total do dataset (com regularizacao): ' + '%.5f' % nn.calculate_cost_function(df, thetas) + '\n')
 
 	print('|--------------------------------------------------------------------------------|')
 	print('Rodando backpropagation')
@@ -150,66 +141,40 @@ if __name__ == '__main__':
 	b = []
 	g = []
 	for i,row in df.iterrows():
-		print('\tCalculando gradientes com base no exemplo '+str(i+1))
-		r1,r2 = nn.backpropagation(df.iloc[[i]], debug=True)
-		b.append(r1)
-		g.append(r2)
-	print('\tDataset completo processado. Calculando gradientes regularizados')
-	avg_b = np.mean(b, axis=0)
+		print('\t\nCalculando gradientes com base no exemplo '+str(i+1))
+		gradient = nn.backpropagation(df.iloc[[i]], debug=True)
+		g.append(gradient)
+	print('\t\nDataset completo processado. Calculando gradientes regularizados')
 	avg_g = np.mean(g, axis=0)
 
-	for i in range(len(avg_b)):
-		print('\t\tGradientes finais para Theta' + str(i+1) + '(com regularizacao):')
-		for j in range(len(avg_b[i])):
-			print_average_gradients = ['%.5f' % n for n in avg_g[i][j]]
-			print('\t\t\t'  + '%.5f ' % avg_b[i][j] + ' '.join(print_average_gradients))
+	for i, g in enumerate(avg_g):
+		print('\n\t\tGradientes finais para Theta' + str(i+1) + '(com regularizacao):')
+		print(re.sub(r"[\[\]]", r"", str(g)))
 		
 	print('--------------------------------------------')
 
 	print('Rodando verificacao numerica de gradientes (epsilon=0.0000010000)')
 	epsilon = 0.0000010000
 
-	avg_bias_numeric = []
-	avg_gradients_numeric = []
+	erro = [0] * len(thetas)
+	for i, theta in enumerate(thetas):
+		print(f'\t\nGradiente numerico de Theta{str(i+1)}:')
+		linhas, colunas = theta.shape
+		for j in range(linhas):
+			for k in range(colunas):
+				theta[j,k]+= epsilon # aumenta epsilon
+				t1 = nn.calculate_cost_function(df, thetas)
+				theta[j,k]-= epsilon # aumenta epsilon
+				theta[j,k]-= epsilon # aumenta epsilon
+				t1 -= nn.calculate_cost_function(df, thetas)
+				theta[j,k]+= epsilon # corrige
+				gradiente = t1/(2*epsilon)
+				print(f'\t\t{gradiente:.5f}', end='')
+				erro[i] += abs(avg_g[i][j,k] - gradiente)
+			print('')
+
+	print("Verificando corretude dos gradientes com base nos gradientes numericos:")
 	for i in range(len(thetas)):
-		print(f'\tGradiente numerico de Theta{str(i+1)}:')
-
-		linhas = [""]*len(thetas[i])
-		linha = 0
-		bias_list = []
-		for k in bias[i]:
-			k+=epsilon
-			t1 = nn.calculate_cost_function(df, thetas, bias)
-			k-= 2*epsilon
-			t1 -= nn.calculate_cost_function(df, thetas, bias)
-			k+=epsilon
-			linhas[linha] += str('%.5f' % (t1/(2*epsilon)))
-			linha+=1
-			bias_list.append([(t1/(2*epsilon))])
-
-		avg_bias_numeric.append(np.array(bias_list))
-
-		linha = 0
-		gradients_list = []
-		for k in range(len(thetas[i])):
-			gradients_list.append([])
-			for j in range(len(thetas[i][k])):
-				thetas[i][k][j]+=epsilon
-				t1 = nn.calculate_cost_function(df, thetas, bias)
-				thetas[i][k][j]-=2*epsilon
-				t1 -= nn.calculate_cost_function(df, thetas, bias)
-				thetas[i][k][j]+=epsilon
-				linhas[linha] += str('  %.5f' % (t1/(2*epsilon)))
-				gradients_list[linha].append(t1/(2*epsilon))
-			linha+=1
-		
-		avg_gradients_numeric.append(np.array(gradients_list))
-		for i in linhas:
-			print(f'\t\t{i}')
-
-v1 = abs( (avg_b-avg_bias_numeric).sum())
-v2 = abs( (avg_g-avg_gradients_numeric).sum())
-print("--------------------------------------------")
-print("Verificando corretude dos gradientes com base nos gradientes numericos:")
-print(f"\tErro entre gradiente via backprop e gradiente numerico para Theta1: {'%.10f' % (v1[0].sum() + v2[0].sum())}")
-print(f"\tErro entre gradiente via backprop e gradiente numerico para Theta2: {'%.10f' % (v1[1].sum() + v2[1].sum())}")
+		lin, col = thetas[i].shape
+		den = lin*col
+		print(f"\tErro entre gradiente via backprop e gradiente numerico para Theta{i}: {'%.15f' % (erro[i]/den)}")
