@@ -25,9 +25,10 @@ class NeuralNetwork():
         self.theta_list = options['thetas']
         self.output_columns = options['output_columns']
         self.learning_rate = options['learning_rate']
-
-        self.activation = [None]*len(self.layers)
-
+        self.activation = []
+        for i in self.layers:
+            self.activation.append(np.ones((i+1,1))) #bias nas camadas ocultas/inicial. tem na última mas não retorna
+        
         np.set_printoptions(precision=5, formatter={'all':lambda x: f'\t{x:.05f}'})
         np.printoptions(precision=5)
         
@@ -44,12 +45,12 @@ class NeuralNetwork():
 
         if debug:
             entrada = inference_data.to_numpy()
-            print('\t\ta1:\t1.00000\t' + re.sub(r"[\[\]]", r"", str(entrada)))
+            print('\t\ta1:\t1.00000\t' + re.sub(r"[\[\]]", r"", str(entrada)) + '\n')
 
         for i in range(1,len(self.layers)): 
             self.calculate_layer_activation(i, debug) #calcula a ativação da rede toda
 
-        return self.activation[-1] # retorna os pesos na camada de saída
+        return self.activation[-1][1:] # retorna os pesos na camada de saída. Tirando o bias
 
     def calculate_layer_activation(self, layer, debug):
         """
@@ -65,21 +66,24 @@ class NeuralNetwork():
         """
         if layer > 0:
            
-            self.activation[layer] = self.theta_list[layer-1] * self.activation[layer-1]
+            self.activation[layer][1:] = self.theta_list[layer-1] * self.activation[layer-1]
         
             if debug:
-                a_without_regularization = f"\t\tz{layer+1}: " + str(self.activation[layer].T)
+                a_without_regularization = f"\t\tz{layer+1}: " + str(self.activation[layer][1:].T)
                 print(re.sub(r"[\[\]]", r"", a_without_regularization))
 
-
-            self.activation[layer] = 1 / (1 + np.exp(-(self.activation[layer])))
+            self.activation[layer][1:] = 1 / (1 + np.exp(-(self.activation[layer][1:])))
             
-            if layer < len(self.layers)-1:
-                self.activation[layer] = np.append(np.array([[1]]), self.activation[layer], axis=0) #adiciono o neuronio de bias pra próxima camada
+            # if layer < len(self.layers)-1:
+            #     self.activation[layer] = np.append(np.array([[1]]), self.activation[layer], axis=0) #adiciono o neuronio de bias pra próxima camada
            
             if debug:
-                b4_sigmoid = f"\t\ta{layer+1}: " + str(self.activation[layer].T)
-                print(re.sub(r"[\[\]]", r"", b4_sigmoid))
+                if layer == len(self.layers)-1:
+                    b4_sigmoid = f"\t\ta{layer+1}: " + str(self.activation[layer][1:].T) + '\n'
+                    print(re.sub(r"[\[\]]", r"", b4_sigmoid))
+                else:
+                    b4_sigmoid = f"\t\ta{layer+1}: " + str(self.activation[layer].T) + '\n'
+                    print(re.sub(r"[\[\]]", r"", b4_sigmoid))
 
     def calculate_cost_function(self, test_set, theta_list, regularizar=True):
         """
@@ -169,8 +173,7 @@ class NeuralNetwork():
 
             for i in reversed(range(len(self.theta_list))):
                 gradients[i] = self.activation[i].dot(deltas[i+1].T).T 
-              
-                #bias_gradients[i] = np.array(1*deltas[i+1]) # bias não leva regularização
+
                 if debug:
                     print('\n\t\tGradientes de Theta'+str(i+1)+':')
                     gr = str(gradients[i])
