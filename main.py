@@ -115,7 +115,7 @@ if __name__ == '__main__':
 		'learning_rate': 0.00001
 	}
 
-	nn = NeuralNetwork(options)
+	nn = NeuralNetwork().train(options, True)
 
 	print('Calculando erro/custo J da rede')
 

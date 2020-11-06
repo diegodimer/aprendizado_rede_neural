@@ -1,10 +1,19 @@
 import numpy as np
 import re
 
+np.set_printoptions(precision=5, formatter={'all':lambda x: f'\t{x:.05f}'})
+np.printoptions(precision=5)
+
 class NeuralNetwork():
-    
+
     activation = None # lista de valores de ativação. activation[x] é uma matriz com os valores de ativação dos neuronios na camada x
     theta_list = None # lista de np.matrix(array) pros pesos de cada layer. theta_list[x] é uma matriz de pesos para a layer x
+    df = None
+    reg_factor = None
+    layers = None
+    output_columns = None
+    learning_rate = None
+    task = None
 
     '''
         options['regularization']: guarda fator de regularização
@@ -14,24 +23,32 @@ class NeuralNetwork():
         options['df']: dataframe contendo todas as instâncias, incluindo colunas de output
         options['output_columns']: lista de nomes das colunas de output. Garantido que os nomes são strings e não números
         options['learning_rate']: o learning rate alpha para atualizar os pesos
+        options['task']: tipo de task, classification ou regression. Classificação arredonda pra 0 ou 1 o resultado da predição, regressão só retorna
     '''
-    def __init__(self, options):
-        """
-        reg_factor = factor de regularização (lambda)
-        layers = número de neuronios em cada camada da rede neural, no mínimo 2 números diferentes (n de neuronios de entrada e de saída)
-        """
+    def train(self, options, debug=False):
         self.reg_factor = options['regularization']
         self.layers = options['neurons_per_layer']
-        self.theta_list = options['thetas']
         self.output_columns = options['output_columns']
         self.learning_rate = options['learning_rate']
+        self.df = options['df']
+        self.task = options.get('task', 'regression')
+        self.theta_list = options.get('thetas', self.gen_random_thetas())
         self.activation = []
+        min_improvement = options.get('min_improvement', 0.001)
         for i in self.layers:
             self.activation.append(np.ones((i+1,1))) #bias nas camadas ocultas/inicial. tem na última mas não retorna
-        
-        np.set_printoptions(precision=5, formatter={'all':lambda x: f'\t{x:.05f}'})
-        np.printoptions(precision=5)
-        
+
+        if not debug:
+            stop = False
+            while not stop:
+                J = self.calculate_cost_function(self.df, self.theta_list)
+                self.backpropagation(self.df)
+                new_J = self.calculate_cost_function(self.df, self.theta_list)
+                if (new_J - J) < min_improvement: #melhorou menos que o minimo: para
+                    stop = True
+
+
+        return self
 
     def predict(self, inference_data, debug=False):
         """
@@ -47,7 +64,7 @@ class NeuralNetwork():
             entrada = inference_data.to_numpy()
             print('\t\ta1:\t1.00000\t' + re.sub(r"[\[\]]", r"", str(entrada)) + '\n')
 
-        for i in range(1,len(self.layers)): 
+        for i in range(1,len(self.layers)):
             self.calculate_layer_activation(i, debug) #calcula a ativação da rede toda
 
         return self.activation[-1][1:] # retorna os pesos na camada de saída. Tirando o bias
@@ -55,7 +72,7 @@ class NeuralNetwork():
     def calculate_layer_activation(self, layer, debug):
         """
         Calcula a função de ativação dos neurônios na camada {layer}
-        layer: número da camada 
+        layer: número da camada
         pra camada 1 não calcula, porque os valores de ativação são as próprias entradas
         theta_list[x] = são os pesos da camada x, da forma  θ11 θ12 θ13
                                                             θ21 θ22 θ23
@@ -65,18 +82,20 @@ class NeuralNetwork():
                                                                     a3
         """
         if layer > 0:
-           
-            self.activation[layer][1:] = self.theta_list[layer-1] * self.activation[layer-1]
-        
+
+            try:
+                self.activation[layer][1:] = np.matmul(self.theta_list[layer-1], self.activation[layer-1])
+            except Exception:
+                raise Exception(f"Could not multiply matrixes with shapes {self.theta_list[layer-1].shape} and {self.activation[layer-1].shape}")
             if debug:
                 a_without_regularization = f"\t\tz{layer+1}: " + str(self.activation[layer][1:].T)
                 print(re.sub(r"[\[\]]", r"", a_without_regularization))
 
             self.activation[layer][1:] = 1 / (1 + np.exp(-(self.activation[layer][1:])))
-            
+
             # if layer < len(self.layers)-1:
             #     self.activation[layer] = np.append(np.array([[1]]), self.activation[layer], axis=0) #adiciono o neuronio de bias pra próxima camada
-           
+
             if debug:
                 if layer == len(self.layers)-1:
                     b4_sigmoid = f"\t\ta{layer+1}: " + str(self.activation[layer][1:].T) + '\n'
@@ -95,8 +114,8 @@ class NeuralNetwork():
         f(x_k) = rotulo predito para entrada x_k
         """
         n = len(test_set.index) # número de linhas
-        cost_function = 0 
-        
+        cost_function = 0
+
         for _,entry in test_set.iterrows():
             y_k = []
             for i in self.output_columns:
@@ -105,21 +124,34 @@ class NeuralNetwork():
             # y_k e f_k são listas (com as saídas esperadas pra cada neuronio na camada de saída)
             cummulative_sum = 0
             for i in range(len(f_k)):
-                cummulative_sum += (-y_k[i] * np.log(f_k[i])) - ( (1-y_k[i]) * np.log( (1-f_k[i]) ))
+                first_part = -y_k[i]
+                if first_part != 0 and f_k[i] != 0:
+                    first_part *= np.log(f_k[i])
+                second_part = (1-y_k[i])
+                if f_k[i] != 1 and second_part != 0:
+                    second_part *= np.log( (1-f_k[i]) )
+
+                cummulative_sum +=  first_part - second_part
 
             cost_function += cummulative_sum
-            
+
         cost_function = cost_function/n
-      
+
         theta_sum = 0
         for i in theta_list:
             theta_sum += (np.square(i[:,1:])).sum() # não somo o bias, tiro a primeira coluna
 
         if regularizar:
             cost_function += (self.reg_factor / (2*n)) * theta_sum
-        
+
         return float(cost_function)
 
+
+    def gen_random_thetas(self): # primeira camada não tem thetas entrando nela
+        thetas = []
+        for i, element in enumerate(self.layers[1:]):
+            thetas.append(np.random.rand(element, self.layers[i]+1))
+        return thetas
 
     def backpropagation(self, test_set, debug=False):
         '''
@@ -143,6 +175,8 @@ class NeuralNetwork():
             y_k = np.matrix(y_k).reshape(len(y_k),1) # transforma a saída esperada numa matriz coluna também
             f_k = self.predict(entry.drop(self.output_columns))
 
+            if y_k == f_k:
+                continue # se acertou pula essa iteração do loop
             #1. calcular os deltas de cada neurônio:
             deltas = [None]*L
 
@@ -156,9 +190,9 @@ class NeuralNetwork():
             # resto das camadas
             for i in reversed(range(1,L - 1)): # primeira camada não tem ativação
                 deltas[i] = []
-                
+
                 first = deltas[i+1].T.dot(self.theta_list[i][:,1:])
-          
+
                 second = np.subtract(self.activation[i][1:], np.square(self.activation[i][1:]))
 
                 deltas[i] =  np.multiply(first.T,second) # element-wise multiplication
@@ -172,17 +206,17 @@ class NeuralNetwork():
             gradients = [None] * (L-1)
 
             for i in reversed(range(len(self.theta_list))):
-                gradients[i] = self.activation[i].dot(deltas[i+1].T).T 
+                gradients[i] = self.activation[i].dot(deltas[i+1].T).T
 
                 if debug:
                     print('\n\t\tGradientes de Theta'+str(i+1)+':')
                     gr = str(gradients[i])
                     print(re.sub(r"[\[\]]", r"",gr))
-            
+
 
             if not debug:
                 # 3. atualizar cada peso com o valor do gradiente:
-                for i in range(len(self.theta_list)):                  
+                for i in range(len(self.theta_list)):
                     self.theta_list[i] = self.theta_list[i] - self.learning_rate * (gradients[i] + self.reg_factor*self.theta_list[i])
 
 
