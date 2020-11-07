@@ -1,4 +1,5 @@
 import pandas as pd
+import numpy as np
 import random
 
 class KFoldValidation():
@@ -24,18 +25,37 @@ class KFoldValidation():
         print("index,score,test_fold_size,accuracy")
         for index, _ in enumerate(folds):
 
-            options['df'] = pd.concat(folds[0:index]+folds[index+1:]) # train is all but the test concatenated
+            #options['df'] = pd.concat(folds[0:index]+folds[index+1:]) # train is all but the test concatenated
+            options['df'] = pd.get_dummies(data = pd.concat(folds[0:index]+folds[index+1:]), columns=[label_column])
+
+            #test_set = folds[index]
+            test_set = pd.get_dummies(data = folds[index], columns=[label_column])
+
+        
             model = algorithm.train(options)
-            test_set = folds[index]
+
             test_set_size = len(test_set.index)
 
             score = 0
+        
             for _, row in test_set.iterrows():
-                correct = row[label_column]
-                predicted = model.predict(row.drop(label_column)) # predict for each row
-                if round(float(predicted)) == correct:
-                    score += 1
+
+                if options['task'] == 'regression':
+                    correct = row[label_column]
+                    predicted = model.predict(row.drop(label_column)) # predict for each row
+                    if round(float(predicted)) == correct:
+                        score += 1
+
+                elif options['task'] == 'classification': # classification -> there's more than one output node
+                    correct = row[options['output_columns']]
+                    predicted = model.predict(row.drop(options['output_columns']))
+
+                    if correct[np.argmax(predicted)] == 1:
+                        score += 1
+               
+            print(" ")
             print(f"{index},{score},{test_set_size},{score/test_set_size}")
+            print(" ")
 
 
     def _split_in_k_folds(self, num_folds, label_column):

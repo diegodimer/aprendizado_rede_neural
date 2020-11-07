@@ -34,19 +34,28 @@ class NeuralNetwork():
         self.task = options.get('task', 'regression')
         self.theta_list = options.get('thetas', self.gen_random_thetas())
         self.activation = []
-        min_improvement = options.get('min_improvement', 0.001)
+        min_improvement = options.get('min_improvement', 0.0005)
         for i in self.layers:
             self.activation.append(np.ones((i+1,1))) #bias nas camadas ocultas/inicial. tem na última mas não retorna
 
+     
         if not debug:
             stop = False
+           
+            i = 0
             while not stop:
-                J = self.calculate_cost_function(self.df, self.theta_list)
-                self.backpropagation(self.df)
-                new_J = self.calculate_cost_function(self.df, self.theta_list)
-                if (new_J - J) < min_improvement: #melhorou menos que o minimo: para
-                    stop = True
 
+                J = self.calculate_cost_function(self.df, self.theta_list)
+               
+                self.backpropagation(self.df)
+
+                new_J = self.calculate_cost_function(self.df, self.theta_list)
+
+                if np.abs(new_J - J) < min_improvement: #melhorou menos que o minimo: para
+                    stop = True
+                if i%5 == 0:
+                    print('new_J: '+str(new_J))
+                i += 1
 
         return self
 
@@ -59,6 +68,7 @@ class NeuralNetwork():
         entries = inference_data.tolist()
         entries.insert(0, 1) ## inserir o bias (por isso o mais 1 ali no número de entradas)
         self.activation[0] = np.array(entries).reshape(number_of_entries,1) # preenche os primeiros neuronios (os de entrada)
+
 
         if debug:
             entrada = inference_data.to_numpy()
@@ -120,10 +130,11 @@ class NeuralNetwork():
             y_k = []
             for i in self.output_columns:
                 y_k.append(entry[i])
-            f_k = self.predict(entry.drop(self.output_columns)) #need to change this for output_layers as well
+            f_k = self.predict(entry.drop(self.output_columns)) 
             # y_k e f_k são listas (com as saídas esperadas pra cada neuronio na camada de saída)
             cummulative_sum = 0
             for i in range(len(f_k)):
+                '''
                 first_part = -y_k[i]
                 if first_part != 0 and f_k[i] != 0:
                     first_part *= np.log(f_k[i])
@@ -131,7 +142,10 @@ class NeuralNetwork():
                 if f_k[i] != 1 and second_part != 0:
                     second_part *= np.log( (1-f_k[i]) )
 
+
                 cummulative_sum +=  first_part - second_part
+                '''
+                cummulative_sum += (-y_k[i] * np.log(f_k[i])) - ((1-y_k[i]) * np.log(1-f_k[i]))
 
             cost_function += cummulative_sum
 
@@ -150,7 +164,7 @@ class NeuralNetwork():
     def gen_random_thetas(self): # primeira camada não tem thetas entrando nela
         thetas = []
         for i, element in enumerate(self.layers[1:]):
-            thetas.append(np.random.rand(element, self.layers[i]+1))
+            thetas.append(np.random.rand(element, self.layers[i]+1)*2 - 1.00001)
         return thetas
 
     def backpropagation(self, test_set, debug=False):
@@ -167,16 +181,16 @@ class NeuralNetwork():
         '''
         L = len(self.activation)
 
-
-        for _,entry in test_set.iterrows():
+        for _,entry in test_set.sample(frac=1).iterrows():
             y_k = []
             for i in self.output_columns:
                 y_k.append(entry[i])
             y_k = np.matrix(y_k).reshape(len(y_k),1) # transforma a saída esperada numa matriz coluna também
             f_k = self.predict(entry.drop(self.output_columns))
 
-            if y_k == f_k:
+            if (y_k == f_k).all(): # acho que esse passo n é necessário, não se se pode causar algum bug
                 continue # se acertou pula essa iteração do loop
+
             #1. calcular os deltas de cada neurônio:
             deltas = [None]*L
 
@@ -215,9 +229,13 @@ class NeuralNetwork():
 
 
             if not debug:
+                
                 # 3. atualizar cada peso com o valor do gradiente:
                 for i in range(len(self.theta_list)):
-                    self.theta_list[i] = self.theta_list[i] - self.learning_rate * (gradients[i] + self.reg_factor*self.theta_list[i])
+                    self.theta_list[i][:,1:] = self.theta_list[i][:,1:] - self.learning_rate * (gradients[i][:,1:] + (self.reg_factor/len(test_set.index))*self.theta_list[i][:,1:])
+                    
+                    self.theta_list[i][:,1] = self.theta_list[i][:,1] - self.learning_rate * (np.asarray(gradients[i])[:,1]) # bias, np.asarray to correct bug from multiplying np.matrix with np.array
 
 
-        return gradients # só usado no debug
+
+        return gradients, self.theta_list # só usado no debug
