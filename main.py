@@ -115,7 +115,7 @@ if __name__ == '__main__':
 		'learning_rate': 0.00001
 	}
 
-	nn = NeuralNetwork(options)
+	nn = NeuralNetwork().train(options, True)
 
 	print('Calculando erro/custo J da rede')
 
@@ -142,7 +142,11 @@ if __name__ == '__main__':
 	g = []
 	for i,row in df.iterrows():
 		print('\t\nCalculando gradientes com base no exemplo '+str(i+1))
-		gradient = nn.backpropagation(df.iloc[[i]], debug=True)
+		gradient, theta_list = nn.backpropagation(df.iloc[[i]], debug=True)
+		
+		for i in range(len(theta_list)):
+			gradient[i][:,1:] = gradient[i][:,1:] + (regularization/len(df.index))*theta_list[i][:,1:]
+
 		g.append(gradient)
 	print('\t\nDataset completo processado. Calculando gradientes regularizados')
 	avg_g = np.mean(g, axis=0)
