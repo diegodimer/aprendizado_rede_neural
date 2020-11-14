@@ -142,7 +142,7 @@ if __name__ == '__main__':
 	g = []
 	for i,row in df.iterrows():
 		print('\t\nCalculando gradientes com base no exemplo '+str(i+1))
-		gradient, theta_list = nn.backpropagation(df.iloc[[i]], debug=True)
+		_, gradient, theta_list = nn.backpropagation(df.iloc[[i]], debug=True)
 		
 		for i in range(len(theta_list)):
 			gradient[i][:,1:] = gradient[i][:,1:] + (regularization/len(df.index))*theta_list[i][:,1:]
