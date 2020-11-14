@@ -41,21 +41,18 @@ class NeuralNetwork():
      
         if not debug:
             stop = False
-           
+            J = self.backpropagation(self.df)
             i = 0
             while not stop:
-
-                J = self.calculate_cost_function(self.df, self.theta_list)
-               
-                self.backpropagation(self.df)
-
-                new_J = self.calculate_cost_function(self.df, self.theta_list)
+                new_J = self.backpropagation(self.df)
 
                 if np.abs(new_J - J) < min_improvement: #melhorou menos que o minimo: para
                     stop = True
-                if i%5 == 0:
-                    print('new_J: '+str(new_J))
-                i += 1
+                else:
+                    J = new_J
+                # if i%5 == 0:
+                #     # print('new_J: '+str(new_J))
+                # i += 1
 
         return self
 
@@ -134,17 +131,6 @@ class NeuralNetwork():
             # y_k e f_k são listas (com as saídas esperadas pra cada neuronio na camada de saída)
             cummulative_sum = 0
             for i in range(len(f_k)):
-                '''
-                first_part = -y_k[i]
-                if first_part != 0 and f_k[i] != 0:
-                    first_part *= np.log(f_k[i])
-                second_part = (1-y_k[i])
-                if f_k[i] != 1 and second_part != 0:
-                    second_part *= np.log( (1-f_k[i]) )
-
-
-                cummulative_sum +=  first_part - second_part
-                '''
                 cummulative_sum += (-y_k[i] * np.log(f_k[i])) - ((1-y_k[i]) * np.log(1-f_k[i]))
 
             cost_function += cummulative_sum
@@ -181,6 +167,8 @@ class NeuralNetwork():
         '''
         L = len(self.activation)
 
+        cost_function = 0
+
         for _,entry in test_set.sample(frac=1).iterrows():
             y_k = []
             for i in self.output_columns:
@@ -188,8 +176,9 @@ class NeuralNetwork():
             y_k = np.matrix(y_k).reshape(len(y_k),1) # transforma a saída esperada numa matriz coluna também
             f_k = self.predict(entry.drop(self.output_columns))
 
-            if (y_k == f_k).all(): # acho que esse passo n é necessário, não se se pode causar algum bug
-                continue # se acertou pula essa iteração do loop
+            if not debug: #calcula a função de custo pra entrada logo depois de prever ela
+                for i in range(len(f_k)):
+                    cost_function += (-y_k[i] * np.log(f_k[i])) - ((1-y_k[i]) * np.log(1-f_k[i]))
 
             #1. calcular os deltas de cada neurônio:
             deltas = [None]*L
@@ -236,6 +225,16 @@ class NeuralNetwork():
                     
                     self.theta_list[i][:,1] = self.theta_list[i][:,1] - self.learning_rate * (np.asarray(gradients[i])[:,1]) # bias, np.asarray to correct bug from multiplying np.matrix with np.array
 
+        if not debug:
+            n = len(test_set.index)
+            cost_function = cost_function/n
 
+            theta_sum = 0
+            for i in self.theta_list:
+                theta_sum += (np.square(i[:,1:])).sum() # não somo o bias, tiro a primeira coluna
 
-        return gradients, self.theta_list # só usado no debug
+            cost_function += (self.reg_factor / (2*n)) * theta_sum
+
+            return float(cost_function)
+        else:
+            return gradients, self.theta_list # só usado no debug

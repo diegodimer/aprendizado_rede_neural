@@ -29,7 +29,9 @@ options = {
 }
 
 # nn = NeuralNetwork().train(options)
-
+import time
+start = time.time()
 kfold = KFoldValidation()
 
 kfold.train_with_kfold(options)
+print(f'{time.time()-start}')
