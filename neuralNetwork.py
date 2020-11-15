@@ -13,18 +13,17 @@ class NeuralNetwork():
     layers = None
     output_columns = None
     learning_rate = None
-    task = None
 
     '''
         options['regularization']: guarda fator de regularização
         options['neurons_per_layer']: lista de neurônios por camada, contando a primeira (número de features) e a última (número de outputs)
         options['bias']: lista de matrizes unidimensionais de peso para cada camada
-        options['thetas']: lista de matrizes de peso para cada camada
+        options['thetas']: opcional, lista de matrizes de peso para cada camada
         options['df']: dataframe contendo todas as instâncias, incluindo colunas de output
         options['output_columns']: lista de nomes das colunas de output. Garantido que os nomes são strings e não números
         options['learning_rate']: o learning rate alpha para atualizar os pesos
-        options['task']: tipo de task, classification ou regression. Classificação arredonda pra 0 ou 1 o resultado da predição, regressão só retorna
-        options['mini_batch_size']: tamanho do batch para backprop. Se é None usa o dataset inteiro (batch). Se 1 é totalmente estocástico
+        options['min_improvement']: opcional, melhora minima para determinar a parada do backpropagation
+        options['mini_batch_size']: opcional, tamanho do batch para backprop. Se é None usa o dataset inteiro (batch). Se 1 é totalmente estocástico
     '''
     def train(self, options, debug=False):
         self.reg_factor = options['regularization']
@@ -32,7 +31,6 @@ class NeuralNetwork():
         self.output_columns = options['output_columns']
         self.learning_rate = options['learning_rate']
         self.df = options['df']
-        self.task = options.get('task', 'regression')
         self.theta_list = options.get('thetas', self.gen_random_thetas())
         self.activation = []
         self.mini_batch_size = options.get("mini_batch_size", len(self.df.index))
