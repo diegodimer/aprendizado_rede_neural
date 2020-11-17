@@ -18,9 +18,10 @@ class KFoldValidation():
         self.df = options['df']
         num_folds = options['num_folds']
         label_column = options['label_column']
+        acc_list = []
 
         folds = self._split_in_k_folds(num_folds, label_column)
-        print("index,score,test_fold_size,accuracy")
+        # print("index,score,test_fold_size,accuracy")
         for index, _ in enumerate(folds):
 
             #options['df'] = pd.concat(folds[0:index]+folds[index+1:]) # train is all but the test concatenated
@@ -50,10 +51,10 @@ class KFoldValidation():
 
                     if correct[np.argmax(predicted)] == 1:
                         score += 1
-               
-            print(" ")
-            print(f"{index},{score},{test_set_size},{score/test_set_size}")
-            print(" ")
+
+            # print(f"{index},{score},{test_set_size},{score/test_set_size}")
+            acc_list.append(score/test_set_size)
+        return sum(acc_list)/len(acc_list)
 
 
     def _split_in_k_folds(self, num_folds, label_column):

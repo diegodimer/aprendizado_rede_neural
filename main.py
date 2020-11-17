@@ -28,7 +28,6 @@ def _normalize_df(df):
 			df[column] = 1.0
 		else:
 			df[column] = (df[column] - min_col) / (max_col - min_col)
-		print(column)
 
 def read_initial_weights(initial_weights):
 	with open(initial_weights,'r') as f:
