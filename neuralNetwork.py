@@ -153,7 +153,7 @@ class NeuralNetwork():
             thetas.append(np.random.rand(element, self.layers[i]+1)*2 - 1.00001)
         return thetas
 
-    def backpropagation(self, test_set, debug=False):
+    def backpropagation(self, test_set, debug=False, print_deltas=False):
         '''
             Atualiza os pesos da rede neural com base nas instâncias de treino
 
@@ -189,7 +189,8 @@ class NeuralNetwork():
 
             if debug:
                 saida = re.sub(r"[\[\]]", r"", str(deltas[L-1].T))
-                print('\t\tdelta'+str(L) + ':' + saida.replace(",", "   "))
+                if print_deltas:
+                    print('\t\tdelta'+str(L) + ':' + saida.replace(",", "   "))
 
             # resto das camadas
             for i in reversed(range(1,L - 1)): # primeira camada não tem ativação
@@ -202,8 +203,9 @@ class NeuralNetwork():
                 deltas[i] =  np.multiply(first.T,second) # element-wise multiplication
                 if debug:
                     camada = str(deltas[i].T)
-                    print_camada = re.sub(r"[\[\]]", r"", camada) #['%.5f' % n for n in deltas[i]]
-                    print('\t\tdelta'+str(i+1) + ':' + print_camada.replace(",", "   ") )
+                    print_camada = re.sub(r"[\[\]]", r"", camada) 
+                    if print_deltas:
+                        print('\t\tdelta'+str(i+1) + ':' + print_camada.replace(",", "   ") )
 
 
             #2. calcular os gradientes dos pesos:

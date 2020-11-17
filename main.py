@@ -61,102 +61,7 @@ def read_network_file(network):
 			neurons_per_layer.append(int(i))
 	return regularization, neurons_per_layer
 
-if __name__ == '__main__':
-	network = sys.argv[1]
-	initial_weights = sys.argv[2]
-	dataset = sys.argv[3]
-
-	# get regularization factor and number of neurons
-	regularization, neurons_per_layer = read_network_file(network)
-
-	# get initial weight values
-	thetas = read_initial_weights(initial_weights)
-
-	#get data and output columns
-	df, output_columns = read_dataset(dataset)
-	'''
-		no fim desse pré-processamento:
-
-		regularization: guarda fator de regularização
-		neurons_per_layer: lista de neurônios por camada, contando a primeira (número de features) e a última (número de outputs)
-		bias: lista de matrizes unidimensionais de peso para cada camada
-		thetas: lista de matrizes de peso para cada camada
-		df: dataframe contendo todas as instâncias, incluindo colunas de output
-		output_columns: lista de nomes das colunas de output. Garantido que os nomes são strings e não números
-	'''
-	print('|--------------------------------------------------------------------------------|')
-	print("Parametro de regularizacao lambda = "+ '%.5f' % regularization)
-	print("\nInicializando rede com a seguinte estrutura de neuronios por camadas: " + str(neurons_per_layer))
-
-	for i in range(len(neurons_per_layer)-1):
-		print("\nTheta"+str(i+1) + " inicial (pesos de cada neuronio, incluindo bias, armazenados nas linhas):")
-		print( re.sub(r"[\[\] ]", r"\t", str(thetas[i])) )
-	print('\nConjunto de treinamento')
-	for index,row in df.iterrows():
-		print('\tExemplo '+str(index+1))
-		y_counter = 1
-		for number,name in enumerate(df.columns, 1):
-			if name in output_columns:
-				print('\t\ty' + str(y_counter) + ": " + '%.5f' % row[name])
-				y_counter += 1
-			else:
-				print('\t\tx' + str(number) + ": " + '%.5f' % row[name])
-
-	print('|--------------------------------------------------------------------------------|')
-
-
-	options = {
-		'regularization': regularization,
-		'neurons_per_layer': neurons_per_layer,
-		'thetas': thetas,
-		'df': df,
-		'output_columns': output_columns,
-		'learning_rate': 0.00001
-	}
-
-	nn = NeuralNetwork().train(options, True)
-
-	print('Calculando erro/custo J da rede')
-
-	for i,row in df.iterrows():
-		print('\tProcessando exemplo de treinamento '+str(i+1))
-		entrada = ['%.5f' % n for n in  row.drop(output_columns).to_numpy()]
-
-		print('\tPropagando entrada ' + '[' + ' '.join(entrada)+ ']')
-		prediction = nn.predict(row.drop(output_columns), debug = True) # retorna [[n]] porque é uma matriz Lx1 ao invés de um array
-		prediction = ['%.5f' % n for n in prediction]
-
-		print('\tSaida predita para o exemplo '+ str(i+1) + ': [' + ' '.join(prediction)+']')
-		expected = ['%.5f' % n for n in row[output_columns]]
-		print('\tSaida esperada para o exemplo '+ str(i+1) + ': [' + ' '.join(expected)+']')
-		result = nn.calculate_cost_function(df.iloc[[i]], thetas, regularizar=False)
-		print('\tJ do exemplo '+ str(i+1) + ': ' + '%.3f' % result+'\n')
-
-	print('J total do dataset (com regularizacao): ' + '%.5f' % nn.calculate_cost_function(df, thetas) + '\n')
-
-	print('|--------------------------------------------------------------------------------|')
-	print('Rodando backpropagation')
-
-	b = []
-	g = []
-	for i,row in df.iterrows():
-		print('\t\nCalculando gradientes com base no exemplo '+str(i+1))
-		_, gradient, theta_list = nn.backpropagation(df.iloc[[i]], debug=True)
-		
-		for i in range(len(theta_list)):
-			gradient[i][:,1:] = gradient[i][:,1:] + (regularization/len(df.index))*theta_list[i][:,1:]
-
-		g.append(gradient)
-	print('\t\nDataset completo processado. Calculando gradientes regularizados')
-	avg_g = np.mean(g, axis=0)
-
-	for i, g in enumerate(avg_g):
-		print('\n\t\tGradientes finais para Theta' + str(i+1) + '(com regularizacao):')
-		print(re.sub(r"[\[\]]", r"", str(g)))
-		
-	print('--------------------------------------------')
-
-	print('Rodando verificacao numerica de gradientes (epsilon=0.0000010000)')
+def verificacao_gradiente(thetas, nn, avg_g):
 	epsilon = 0.0000010000
 
 	erro = [0] * len(thetas)
@@ -181,3 +86,108 @@ if __name__ == '__main__':
 		lin, col = thetas[i].shape
 		den = lin*col
 		print(f"\tErro entre gradiente via backprop e gradiente numerico para Theta{i}: {'%.15f' % (erro[i]/den)}")
+
+if __name__ == '__main__':
+	network = sys.argv[1]
+	initial_weights = sys.argv[2]
+	dataset = sys.argv[3]
+	chamada = sys.argv[4]
+
+	# get regularization factor and number of neurons
+	regularization, neurons_per_layer = read_network_file(network)
+
+	# get initial weight values
+	thetas = read_initial_weights(initial_weights)
+
+	#get data and output columns
+	df, output_columns = read_dataset(dataset)
+
+	options = {
+	'regularization': regularization,
+	'neurons_per_layer': neurons_per_layer,
+	'thetas': thetas,
+	'df': df,
+	'output_columns': output_columns,
+	'learning_rate': 0.00001
+	}
+
+
+	if chamada == 'backpropagation':
+		nn = NeuralNetwork().train(options, True)
+
+		print('|--------------------------------------------------------------------------------|')
+		print("Parametro de regularizacao lambda = "+ '%.5f' % regularization)
+		print("\nInicializando rede com a seguinte estrutura de neuronios por camadas: " + str(neurons_per_layer))
+
+		for i in range(len(neurons_per_layer)-1):
+			print("\nTheta"+str(i+1) + " inicial (pesos de cada neuronio, incluindo bias, armazenados nas linhas):")
+			print( re.sub(r"[\[\] ]", r"\t", str(thetas[i])) )
+		print('\nConjunto de treinamento')
+		for index,row in df.iterrows():
+			print('\tExemplo '+str(index+1))
+			y_counter = 1
+			for number,name in enumerate(df.columns, 1):
+				if name in output_columns:
+					print('\t\ty' + str(y_counter) + ": " + '%.5f' % row[name])
+					y_counter += 1
+				else:
+					print('\t\tx' + str(number) + ": " + '%.5f' % row[name])
+
+		print('|--------------------------------------------------------------------------------|')
+
+
+
+		print('Calculando erro/custo J da rede')
+
+		for i,row in df.iterrows():
+			print('\tProcessando exemplo de treinamento '+str(i+1))
+			entrada = ['%.5f' % n for n in  row.drop(output_columns).to_numpy()]
+
+			print('\tPropagando entrada ' + '[' + ' '.join(entrada)+ ']')
+			prediction = nn.predict(row.drop(output_columns), debug = True) # retorna [[n]] porque é uma matriz Lx1 ao invés de um array
+			prediction = ['%.5f' % n for n in prediction]
+
+			print('\tSaida predita para o exemplo '+ str(i+1) + ': [' + ' '.join(prediction)+']')
+			expected = ['%.5f' % n for n in row[output_columns]]
+			print('\tSaida esperada para o exemplo '+ str(i+1) + ': [' + ' '.join(expected)+']')
+			result = nn.calculate_cost_function(df.iloc[[i]], thetas, regularizar=False)
+			print('\tJ do exemplo '+ str(i+1) + ': ' + '%.3f' % result+'\n')
+
+		print('J total do dataset (com regularizacao): ' + '%.5f' % nn.calculate_cost_function(df, thetas) + '\n')
+
+		print('|--------------------------------------------------------------------------------|')
+		print('Rodando backpropagation')
+
+		b = []
+		g = []
+		for i,row in df.iterrows():
+			print('\t\nCalculando gradientes com base no exemplo '+str(i+1))
+			_, gradient, theta_list = nn.backpropagation(df.iloc[[i]], debug=True, print_deltas=True)
+			
+			for i in range(len(theta_list)):
+				gradient[i][:,1:] = gradient[i][:,1:] + (regularization/len(df.index))*theta_list[i][:,1:]
+
+			g.append(gradient)
+		print('\t\nDataset completo processado. Calculando gradientes regularizados')
+		avg_g = np.mean(g, axis=0)
+
+		for i, g in enumerate(avg_g):
+			print('\n\t\tGradientes finais para Theta' + str(i+1) + '(com regularizacao):')
+			print(re.sub(r"[\[\]]", r"", str(g)))
+			
+		print('--------------------------------------------')
+		print('Rodando verificacao numerica de gradientes (epsilon=0.0000010000)')
+	else:
+		nn = NeuralNetwork().train(options, False)
+		g = []
+		for i,row in df.iterrows():
+			_, gradient, theta_list = nn.backpropagation(df.iloc[[i]], debug=True)
+			for i in range(len(theta_list)):
+				gradient[i][:,1:] = gradient[i][:,1:] + (regularization/len(df.index))*theta_list[i][:,1:]
+
+			g.append(gradient)
+		avg_g = np.mean(g, axis=0)
+		print('Rodando verificacao numerica de gradientes (epsilon=0.0000010000) (a partir da média dos gradientes do conjunto de exemplos)')
+	
+	verificacao_gradiente(thetas, nn, avg_g)
+
