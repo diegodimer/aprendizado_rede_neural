@@ -11,15 +11,13 @@ class KFoldValidation():
         options['df']: pandasDataFrame, the training dataframe
         options['train_algorithm']: the training algorithm (class)
         options['num_folds']: number of folds
+        options['task']: tarefa utilizada, valores possíveis: [classification, regression]
         + all options necessary for the training algorithm
         """
         algorithm = options['train_algorithm']
         self.df = options['df']
         num_folds = options['num_folds']
         label_column = options['label_column']
-
-        acc_list = []
-        f_sc_list = []
 
         folds = self._split_in_k_folds(num_folds, label_column)
         print("index,score,test_fold_size,accuracy")

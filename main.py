@@ -1,8 +1,8 @@
 '''
 	comando para rodar:
 
-		python backpropagation.py network.txt initial_weights.txt dataset.txt
-
+		python main.py network.txt initial_weights.txt dataset.txt
+		./backpropagation network.txt initial_weights.txt dataset.txt
 	arquivos e formato de saida como descrito no enunciado
 
 '''
@@ -35,7 +35,7 @@ def read_initial_weights(initial_weights):
 		content = f.readlines()
 		thetas = []
 		for i in content:
-			thetas.append(np.matrix(i))
+			thetas.append(np.asarray(np.matrix(i)))
 	return thetas
 
 def read_dataset(dataset):
@@ -142,7 +142,7 @@ if __name__ == '__main__':
 	g = []
 	for i,row in df.iterrows():
 		print('\t\nCalculando gradientes com base no exemplo '+str(i+1))
-		gradient, theta_list = nn.backpropagation(df.iloc[[i]], debug=True)
+		_, gradient, theta_list = nn.backpropagation(df.iloc[[i]], debug=True)
 		
 		for i in range(len(theta_list)):
 			gradient[i][:,1:] = gradient[i][:,1:] + (regularization/len(df.index))*theta_list[i][:,1:]

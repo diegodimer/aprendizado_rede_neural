@@ -13,17 +13,17 @@ class NeuralNetwork():
     layers = None
     output_columns = None
     learning_rate = None
-    task = None
 
     '''
         options['regularization']: guarda fator de regularização
         options['neurons_per_layer']: lista de neurônios por camada, contando a primeira (número de features) e a última (número de outputs)
         options['bias']: lista de matrizes unidimensionais de peso para cada camada
-        options['thetas']: lista de matrizes de peso para cada camada
+        options['thetas']: opcional, lista de matrizes de peso para cada camada
         options['df']: dataframe contendo todas as instâncias, incluindo colunas de output
         options['output_columns']: lista de nomes das colunas de output. Garantido que os nomes são strings e não números
         options['learning_rate']: o learning rate alpha para atualizar os pesos
-        options['task']: tipo de task, classification ou regression. Classificação arredonda pra 0 ou 1 o resultado da predição, regressão só retorna
+        options['min_improvement']: opcional, melhora minima para determinar a parada do backpropagation
+        options['mini_batch_size']: opcional, tamanho do batch para backprop. Se é None usa o dataset inteiro (batch). Se 1 é totalmente estocástico
     '''
     def train(self, options, debug=False):
         self.reg_factor = options['regularization']
@@ -31,9 +31,9 @@ class NeuralNetwork():
         self.output_columns = options['output_columns']
         self.learning_rate = options['learning_rate']
         self.df = options['df']
-        self.task = options.get('task', 'regression')
         self.theta_list = options.get('thetas', self.gen_random_thetas())
         self.activation = []
+        self.mini_batch_size = options.get("mini_batch_size", len(self.df.index))
         min_improvement = options.get('min_improvement', 0.0005)
         for i in self.layers:
             self.activation.append(np.ones((i+1,1))) #bias nas camadas ocultas/inicial. tem na última mas não retorna
@@ -41,10 +41,10 @@ class NeuralNetwork():
      
         if not debug:
             stop = False
-            J = self.backpropagation(self.df)
+            J,_,_ = self.backpropagation(self.df)
             i = 0
             while not stop:
-                new_J = self.backpropagation(self.df)
+                new_J,_,_ = self.backpropagation(self.df)
 
                 if np.abs(new_J - J) < min_improvement: #melhorou menos que o minimo: para
                     stop = True
@@ -166,7 +166,8 @@ class NeuralNetwork():
                 theta_ijk = theta_ijk -learning_rate*d/d(theta_ijk)
         '''
         L = len(self.activation)
-
+        gradients = [None] * (L-1)
+        mini_batch_index = 0
         cost_function = 0
 
         for _,entry in test_set.sample(frac=1).iterrows():
@@ -206,35 +207,34 @@ class NeuralNetwork():
 
 
             #2. calcular os gradientes dos pesos:
-            gradients = [None] * (L-1)
 
             for i in reversed(range(len(self.theta_list))):
-                gradients[i] = self.activation[i].dot(deltas[i+1].T).T
-
+                if mini_batch_index == 0:
+                    gradients[i] = self.activation[i].dot(deltas[i+1].T).T
+                else:
+                    gradients[i] += self.activation[i].dot(deltas[i+1].T).T
+                
                 if debug:
                     print('\n\t\tGradientes de Theta'+str(i+1)+':')
                     gr = str(gradients[i])
                     print(re.sub(r"[\[\]]", r"",gr))
 
+            mini_batch_index+= 1
 
-            if not debug:
-                
-                # 3. atualizar cada peso com o valor do gradiente:
-                for i in range(len(self.theta_list)):
-                    self.theta_list[i][:,1:] = self.theta_list[i][:,1:] - self.learning_rate * (gradients[i][:,1:] + (self.reg_factor/len(test_set.index))*self.theta_list[i][:,1:])
-                    
-                    self.theta_list[i][:,1] = self.theta_list[i][:,1] - self.learning_rate * (np.asarray(gradients[i])[:,1]) # bias, np.asarray to correct bug from multiplying np.matrix with np.array
+            if mini_batch_index == self.mini_batch_size:
+                mini_batch_index = 0
+                if not debug:
+                    # 3. atualizar cada peso com o valor do gradiente:
+                    for i in range(len(self.theta_list)):
+                        self.theta_list[i][:,1:] = self.theta_list[i][:,1:] - self.learning_rate * ( (gradients[i][:,1:]/self.mini_batch_size) + (self.reg_factor/len(test_set.index))*self.theta_list[i][:,1:])              
+                        self.theta_list[i][:,1] = self.theta_list[i][:,1] - self.learning_rate * ((np.asarray(gradients[i])[:,1])/self.mini_batch_size) # bias, np.asarray to correct bug from multiplying np.matrix with np.array
 
-        if not debug:
-            n = len(test_set.index)
-            cost_function = cost_function/n
+        n = len(test_set.index)
+        cost_function = cost_function/n
 
-            theta_sum = 0
-            for i in self.theta_list:
-                theta_sum += (np.square(i[:,1:])).sum() # não somo o bias, tiro a primeira coluna
+        theta_sum = 0
+        for i in self.theta_list:
+            theta_sum += (np.square(i[:,1:])).sum() # não somo o bias, tiro a primeira coluna
 
-            cost_function += (self.reg_factor / (2*n)) * theta_sum
-
-            return float(cost_function)
-        else:
-            return gradients, self.theta_list # só usado no debug
+        cost_function += (self.reg_factor / (2*n)) * theta_sum
+        return float(cost_function), gradients, self.theta_list # só usado no debug

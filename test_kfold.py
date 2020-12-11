@@ -25,7 +25,8 @@ options = {
     'task': 'classification',
     'train_algorithm': NeuralNetwork(),
     'num_folds': 5,
-    'label_column': 'target'
+    'label_column': 'target',
+    'mini_batch_size': 5
 }
 
 # nn = NeuralNetwork().train(options)
